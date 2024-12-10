@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dinosaur Jumping Game</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      overflow: hidden;
+      background-color: #f4f4f4;
+    }
+
+    #gameContainer {
+      position: relative;
+      width: 100%;
+      height: 400px;
+      background-color: #87CEEB;
+      border: 2px solid #333;
+      overflow: hidden;
+      display: none;
+    }
+
+    #ground {
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      height: 50px;
+      background-color: #654321;
+    }
+
+    #dino {
+      position: absolute;
+      bottom: 50px;
+      left: 50px;
+      width: 50px;
+      height: 50px;
+      background-color: #228B22;
+      border-radius: 5px;
+      animation: run 0.2s steps(4) infinite;
+    }
+
+    @keyframes run {
+      0% { background-color: #228B22; }
+      50% { background-color: #32CD32; }
+      100% { background-color: #228B22; }
+    }
+
+    .obstacle {
+      position: absolute;
+      bottom: 50px;
+      width: 30px;
+      height: 30px;
+      background-color: #8B0000;
+    }
+
+    #score {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-size: 18px;
+      font-weight: bold;
+      color: #333;
+    }
+
+    #startButton, #gameOverScreen {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+    }
+
+    #startButton button, #gameOverScreen button {
+      font-size: 18px;
+      padding: 10px 20px;
+      background-color: #333;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+
+    #gameOverScreen {
+      display: none;
+    }
+
+    #gameOverScreen h1 {
+      font-size: 24px;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div id="gameContainer">
+    <div id="score">Score: 0</div>
+    <div id="dino"></div>
+    <div id="ground"></div>
+  </div>
+
+  <div id="startButton">
+    <button onclick="startGame()">Start Game</button>
+  </div>
+
+  <div id="gameOverScreen">
+    <h1>Game Over!</h1>
+    <p>Your Score: <span id="finalScore">0</span></p>
+    <button onclick="restartGame()">Restart</button>
+  </div>
+
+  <script>
+    const gameContainer = document.getElementById('gameContainer');
+    const dino = document.getElementById('dino');
+    const scoreDisplay = document.getElementById('score');
+    const startButton = document.getElementById('startButton');
+    const gameOverScreen = document.getElementById('gameOverScreen');
+    const finalScore = document.getElementById('finalScore');
+
+    let isJumping = false;
+    let isFalling = false;
+    let score = 0;
+    let gameInterval;
+    let obstacleSpawnInterval;
+    let obstacles = [];
+    let obstacleSpeed = 5;  // Starting obstacle speed
+    let spawnSpeed = 2000;  // Starting spawn rate
+    let maxObstacleSpeed = 20;  // Maximum speed of obstacles
+    let minSpawnSpeed = 500;  // Minimum spawn interval
+
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'Space') {
+        jump();
+      }
+    });
+
+    function startGame() {
+      score = 0;
+      isJumping = false;
+      isFalling = false;
+      obstacles = [];
+      obstacleSpeed = 5;
+      spawnSpeed = 2000;
+
+      startButton.style.display = 'none';
+      gameOverScreen.style.display = 'none';
+      gameContainer.style.display = 'block';
+
+      scoreDisplay.textContent = `Score: ${score}`;
+      dino.style.bottom = '50px';
+
+      // Clear any remaining obstacles from the last game
+      clearObstacles();
+
+      spawnObstacles();
+      updateGame();
+    }
+
+    function restartGame() {
+      // Clear remaining obstacles and reset game state
+      clearObstacles();
+      gameOverScreen.style.display = 'none';
+      startGame();
+    }
+
+    function gameOver() {
+      clearInterval(gameInterval);
+      clearInterval(obstacleSpawnInterval);
+      finalScore.textContent = score;
+      gameContainer.style.display = 'none';
+      gameOverScreen.style.display = 'block';
+    }
+
+    function jump() {
+      if (isJumping || isFalling) return;
+      isJumping = true;
+      let position = parseInt(window.getComputedStyle(dino).bottom);
+
+      const jumpHeight = 150;
+
+      const upInterval = setInterval(() => {
+        if (position >= 50 + jumpHeight) {
+          clearInterval(upInterval);
+          fall();
+        } else {
+          position += 5;
+          dino.style.bottom = position + 'px';
+        }
+      }, 20);
+    }
+
+    function fall() {
+      isFalling = true;
+      let position = parseInt(window.getComputedStyle(dino).bottom);
+
+      const downInterval = setInterval(() => {
+        if (position <= 50) {
+          clearInterval(downInterval);
+          isFalling = false;
+          isJumping = false;
+        } else {
+          position -= 5;
+          dino.style.bottom = position + 'px';
+        }
+      }, 20);
+    }
+
+    function spawnObstacles() {
+      obstacleSpawnInterval = setInterval(() => {
+        const obstacle = document.createElement('div');
+        obstacle.classList.add('obstacle');
+        obstacle.style.left = '100%';
+        obstacle.style.bottom = '50px';
+        gameContainer.appendChild(obstacle);
+        obstacles.push(obstacle);
+
+        setTimeout(() => {
+          obstacles = obstacles.filter((o) => o !== obstacle);
+          gameContainer.removeChild(obstacle);
+        }, 10000); // Remove obstacles after 10 seconds
+      }, spawnSpeed); // Spawn interval
+    }
+
+    function updateGame() {
+      const gameSpeed = 20;
+
+      gameInterval = setInterval(() => {
+        score++;
+        scoreDisplay.textContent = `Score: ${score}`;
+
+        // Increase difficulty over time
+        if (score % 100 === 0) { // Every 100 points
+          if (obstacleSpeed < maxObstacleSpeed) {
+            obstacleSpeed += 1;  // Gradually increase speed of obstacles
+          }
+          if (spawnSpeed > minSpawnSpeed) {
+            spawnSpeed -= 50;  // Decrease spawn interval (increase frequency)
+          }
+
+          // Restart obstacle spawning with new speeds
+          clearInterval(obstacleSpawnInterval);
+          spawnObstacles();
+        }
+
+        obstacles.forEach((obstacle) => {
+          const obstacleLeft = parseInt(window.getComputedStyle(obstacle).left);
+
+          if (obstacleLeft < -30) {
+            obstacle.remove();
+          } else {
+            obstacle.style.left = obstacleLeft - obstacleSpeed + 'px';
+          }
+
+          const dinoRect = dino.getBoundingClientRect();
+          const obstacleRect = obstacle.getBoundingClientRect();
+
+          if (
+            dinoRect.right > obstacleRect.left &&
+            dinoRect.left < obstacleRect.right &&
+            dinoRect.bottom > obstacleRect.top
+          ) {
+            clearInterval(gameInterval);
+            clearInterval(obstacleSpawnInterval);
+            gameOver();
+          }
+        });
+      }, gameSpeed);
+    }
+
+    function clearObstacles() {
+      // Remove any remaining obstacles from the previous game
+      obstacles.forEach((obstacle) => {
+        gameContainer.removeChild(obstacle);
+      });
+      obstacles = [];
+    }
+  </script>
+</body>
+
+
+        <a href="../index.html">Home</a>
+        <a href="iawebapp.html">Dino Game</a>
+        <a href="scatch.html">Scratch Page</a>
+</html>
+
+
+
+
+
+
+
+
+     
+
+
+
